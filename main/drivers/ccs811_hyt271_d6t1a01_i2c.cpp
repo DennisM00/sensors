@@ -44,6 +44,9 @@ static d6t1a01_sensor_ctx_t d6t1a01_ctx;
 
 static esp_err_t init_i2c()
 {
+    // Deinstalliere den I2C-Treiber, falls er bereits installiert ist
+    i2c_driver_delete(I2C_MASTER_NUM);
+
     // I2C master initialization
     i2c_config_t conf = {                                                                       // conf
         .mode = I2C_MODE_MASTER,
@@ -63,6 +66,9 @@ static esp_err_t init_i2c()
     }
 
     return i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to install I2C driver, err:%d", err);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -32,6 +32,29 @@ using namespace esp_matter::endpoint;
 using namespace chip::app::Clusters;
 
 
+#include <esp_matter_endpoint.h>
+#include <esp_matter_cluster.h>
+
+/*
+namespace esp_matter {
+    namespace endpoint {
+        namespace eCO2_sensor {
+            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data) {
+                return common::create<config_t>(node, config, flags, priv_data, add);
+            }
+        } // namespace eCO2_sensor
+
+        namespace TVOC_sensor {
+            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data) {
+                return common::create<config_t>(node, config, flags, priv_data, add);
+            }
+        } // namespace TVOC_sensor
+    } // namespace endpoint
+} // namespace esp_matter
+*/
+
+
+
 
 // Application cluster specification, 7.18.2.11. Temperature
 // represents a temperature on the Celsius scale with a resolution of 0.01°C.
@@ -71,40 +94,39 @@ static void humidity_sensor_notification(uint16_t endpoint_id, float humidity, v
     });
 }
 
-/*
+
 static void eCO2_sensor_notification(uint16_t endpoint_id, float eCO2, void *user_data)
 {
     // schedule the attribute update so that we can report it from matter thread
     chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, eCO2]() {
         attribute_t * attribute = attribute::get(endpoint_id,
-                                                 eCO2Measurement::Id,
-                                                 eCO2Measurement::Attributes::MeasuredValue::Id);
+                                                 CarbonDioxideConcentrationMeasurement::Id,
+                                                 CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id);
 
         esp_matter_attr_val_t val = esp_matter_invalid(NULL);
         attribute::get_val(attribute, &val);
         val.val.u16 = static_cast<uint16_t>(eCO2 * 100);                                                        // TODO: check if this is correct
 
-        attribute::update(endpoint_id, eCO2Measurement::Id, eCO2Measurement::Attributes::MeasuredValue::Id, &val);
+        attribute::update(endpoint_id, CarbonDioxideConcentrationMeasurement::Id, CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id, &val);
     });
 }
-
 
 static void TVOC_sensor_notification(uint16_t endpoint_id, float TVOC, void *user_data)
 {
     // schedule the attribute update so that we can report it from matter thread
     chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, TVOC]() {
         attribute_t * attribute = attribute::get(endpoint_id,
-                                                 TVOCMeasurement::Id,
-                                                 TVOCMeasurement::Attributes::MeasuredValue::Id);
+                                                 TotalVolatileOrganicCompoundsConcentrationMeasurement::Id,
+                                                 TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id);
 
         esp_matter_attr_val_t val = esp_matter_invalid(NULL);
         attribute::get_val(attribute, &val);
         val.val.u16 = static_cast<uint16_t>(TVOC * 100);                                                        // TODO: check if this is correct
 
-        attribute::update(endpoint_id, TVOCMeasurement::Id, TVOCMeasurement::Attributes::MeasuredValue::Id, &val);
+        attribute::update(endpoint_id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id, &val);
     });
 }
-*/
+
 // To do: d6t1a01 sensor notification
 
 
@@ -228,19 +250,19 @@ extern "C" void app_main()
     endpoint_t * humidity_sensor_ep = humidity_sensor::create(node, &humidity_sensor_config, ENDPOINT_FLAG_NONE, NULL);
     ABORT_APP_ON_FAILURE(humidity_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create humidity_sensor endpoint"));
 
-/*
-    // add the eCO2 sensor device
-    eCO2_sensor::config_t eCO2_sensor_config;
-    endpoint_t * eCO2_sensor_ep = eCO2_sensor::create(node, &eCO2_sensor_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(eCO2_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create eCO2_sensor endpoint"));
 
+    // add the eCO2 sensor device
+    air_quality_sensor::config_t air_quality_sensor_config;
+    endpoint_t * air_quality_sensor_ep = air_quality_sensor::create(node, &air_quality_sensor_config, ENDPOINT_FLAG_NONE, NULL);
+    ABORT_APP_ON_FAILURE(air_quality_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create air_quality_sensor endpoint"));
+/*
     // add the TVOC sensor device
-    TVOC_sensor::config_t TVOC_sensor_config;
-    endpoint_t * TVOC_sensor_ep = TVOC_sensor::create(node, &TVOC_sensor_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(TVOC_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create TVOC_sensor endpoint"));
+    air_quality_sensor::config_t air_quality_sensor_config;
+    endpoint_t * air_quality_sensor_ep = air_quality_sensor::create(node, &air_quality_sensor_config, ENDPOINT_FLAG_NONE, NULL);
+    ABORT_APP_ON_FAILURE(air_quality_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create air_quality_sensor endpoint"));
 
     // add the detection sensor device (D6T1A01) ????????????????????
-
+*/
 
     
 
@@ -248,16 +270,16 @@ extern "C" void app_main()
     static ccs811_sensor_config_t ccs811_config = {
         .eCO2 = {
             .cb = eCO2_sensor_notification,
-            .endpoint_id = endpoint::get_id(eCO2_sensor_ep),
+            .endpoint_id = endpoint::get_id(air_quality_sensor_ep),
         },
         .TVOC = {
             .cb = TVOC_sensor_notification,
-            .endpoint_id = endpoint::get_id(TVOC_sensor_ep),
+            .endpoint_id = endpoint::get_id(air_quality_sensor_ep),
         },
     };
     err = ccs811_sensor_init(&ccs811_config);
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to initialize CO2 and TVOC sensor driver"));    
-*/
+
 
     // initialize temperature and humidity sensor driver (hyt271)
     static hyt271_sensor_config_t hyt271_config = {
