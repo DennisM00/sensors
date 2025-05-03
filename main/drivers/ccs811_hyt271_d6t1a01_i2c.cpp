@@ -44,11 +44,9 @@ static d6t1a01_sensor_ctx_t d6t1a01_ctx;
 
 static esp_err_t init_i2c()
 {
-    // Deinstalliere den I2C-Treiber, falls er bereits installiert ist
-    i2c_driver_delete(I2C_MASTER_NUM);
+    i2c_driver_delete(I2C_MASTER_NUM);                                  // Deinstalliere den I2C-Treiber, falls er bereits installiert ist
 
-    // I2C master initialization
-    i2c_config_t conf = {                                                                       // conf
+    i2c_config_t conf = {                                               // I2C master initialisierung                     
         .mode = I2C_MODE_MASTER,
         .sda_io_num = I2C_MASTER_SDA_IO,
         .scl_io_num = I2C_MASTER_SCL_IO,
@@ -73,17 +71,17 @@ static esp_err_t init_i2c()
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static esp_err_t ccs811_read(uint8_t *data, size_t size)
-{
+esp_err_t write(uint8_t ADDR, uint8_t reg, uint8_t value){
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
 
-    i2c_master_write_byte(cmd, (CSS811_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);             // true entspricht ACK
-    i2c_master_write_byte(cmd, 0x02, true);
     i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (CSS811_SENSOR_ADDR << 1) | I2C_MASTER_READ, true);
-    i2c_master_read(cmd, data, size, I2C_MASTER_LAST_NACK);
-
+    i2c_master_write_byte(cmd, (ADDR << 1) | I2C_MASTER_WRITE, true);
+    if (reg != 0xAA) {
+        i2c_master_write_byte(cmd, reg, true);
+    }
+    if (value != 0xAA) {
+        i2c_master_write_byte(cmd, value, true);
+    }
     i2c_master_stop(cmd);
     i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
     i2c_cmd_link_delete(cmd);
@@ -91,11 +89,31 @@ static esp_err_t ccs811_read(uint8_t *data, size_t size)
     return ESP_OK;
 }
 
-static esp_err_t ccs811_convert(float & eCO2, float & TVOC)
+esp_err_t read(uint8_t *data, size_t size, uint8_t ADDR){
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (ADDR << 1) | I2C_MASTER_READ, true);
+    i2c_master_read(cmd, data, size, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
+    i2c_cmd_link_delete(cmd);
+    cmd = NULL;
+    return ESP_OK;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static esp_err_t ccs811_convert(int & eCO2, int & TVOC)
 {
     uint8_t data[4] = {0};
+    
+    esp_err_t err = write(CSS811_SENSOR_ADDR, 0x02, 0xAA);
+    if (err != ESP_OK) {
+        return err;
+    }
 
-    esp_err_t err = ccs811_read(data, sizeof(data));
+    err = read(data, sizeof(data), CSS811_SENSOR_ADDR);
     if (err != ESP_OK) {
         return err;
     }
@@ -108,21 +126,13 @@ static esp_err_t ccs811_convert(float & eCO2, float & TVOC)
     }
     #endif
 
-    uint16_t raw_eCO2 = ((uint16_t)data[0] << 8) | ((uint16_t) data[1]);
-    uint16_t raw_TVOC = ((uint16_t)data[2] << 8) | ((uint16_t) data[3]);
+     eCO2 = ((uint16_t)data[0] << 8) | ((uint16_t) data[1]);
+     TVOC = ((uint16_t)data[2] << 8) | ((uint16_t) data[3]);
 
     #ifdef test
-    printf("\neCO2bytes: %d, TVOCbytes: %d\n", raw_eCO2, raw_TVOC);
+    printf("\neCO2: %d ppm, TVOC: %d ppb\n", eCO2, TVOC);
     #endif
 
-    //Warum Rechnung? werte von oben sind OK?                                                       // werte überprüfen-Rechnung nötig?
-    eCO2 = (raw_eCO2 - 0.5) / 512;
-    TVOC = (raw_TVOC - 0.5) / 512;
-
-    #ifdef test
-    printf("eCO2: %f ppm, TVOC: %f \n", eCO2, TVOC);
-    #endif
-    
     return ESP_OK;
 }
 
@@ -133,7 +143,7 @@ static void ccs811_timer_cb_internal(void *arg)                                 
         return;
     }
 
-    float eCO2, TVOC;
+    int eCO2, TVOC;
     esp_err_t err = ccs811_convert(eCO2, TVOC);
     if (err != ESP_OK) {
         return;
@@ -151,19 +161,19 @@ esp_err_t ccs811_sensor_init(ccs811_sensor_config_t *config)
     if (config == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (config->eCO2.cb == NULL || config->TVOC.cb == NULL) {                       // we need at least one callback so that we can start notifying application layer
+    if (config->eCO2.cb == NULL || config->TVOC.cb == NULL) {           // min. ein callback benötigt
         return ESP_ERR_INVALID_ARG;
     }
     if (ccs811_ctx.is_initialized) {
         return ESP_ERR_INVALID_STATE;
     }
-
+    
     esp_err_t err = init_i2c();
     if (err != ESP_OK) {
         return err;
     }
 
-    ccs811_ctx.config = config;                                                          // keep the pointer to config
+    ccs811_ctx.config = config;
 
     esp_timer_create_args_t args = {
         .callback = ccs811_timer_cb_internal,
@@ -190,34 +200,15 @@ esp_err_t ccs811_sensor_init(ccs811_sensor_config_t *config)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static esp_err_t hyt271_read(uint8_t *data, size_t size)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();                                               // Mearurement Request
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (HYT271_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);             // true entspricht ACK
-    i2c_master_write_byte(cmd, 0x00, true);
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
-
-    vTaskDelay(pdMS_TO_TICKS(100));                                                             // 100 ms zwischen Measurement Request und Data Fetch
-
-    cmd = i2c_cmd_link_create();                                                                // Data Fetch         
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (HYT271_SENSOR_ADDR << 1) | I2C_MASTER_READ, true);
-    i2c_master_read(cmd, data, size, I2C_MASTER_LAST_NACK);
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
-    cmd = NULL;
-    return ESP_OK;
-}
-
 static esp_err_t hyt271_convert(float & temp, float & hum)
 {
     uint8_t data[4] = {0};
-
-    esp_err_t err = hyt271_read(data, sizeof(data));
+    esp_err_t err = write(HYT271_SENSOR_ADDR, 0xFF, 0xFF);                                  // Measurement Request // 0xFF stehen für nicht vorhanden
+    if (err != ESP_OK) {
+        return err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));                                                         // 100 ms zwischen Measurement Request und Data Fetch 
+    err = read(data, sizeof(data), HYT271_SENSOR_ADDR);                                     // Data Fetch
     if (err != ESP_OK) {
         return err;
     }
@@ -258,8 +249,7 @@ static esp_err_t hyt271_convert(float & temp, float & hum)
     return ESP_OK;
 }
 
-static void hyt271_timer_cb_internal(void *arg)                                     // ??????????????????????
-{
+static void hyt271_timer_cb_internal(void *arg){
     auto *ctx = (hyt271_sensor_ctx_t *) arg;
     if (!(ctx && ctx->config)) {
         return;
@@ -283,7 +273,7 @@ esp_err_t hyt271_sensor_init(hyt271_sensor_config_t *config)
     if (config == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (config->temperature.cb == NULL || config->humidity.cb == NULL) {            // we need at least one callback so that we can start notifying application layer
+    if (config->temperature.cb == NULL || config->humidity.cb == NULL) {        // min. ein callback benötigt
         return ESP_ERR_INVALID_ARG;
     }
     if (hyt271_ctx.is_initialized) {
@@ -295,7 +285,22 @@ esp_err_t hyt271_sensor_init(hyt271_sensor_config_t *config)
         return err;
     }
 
-    hyt271_ctx.config = config;                                                          // keep the pointer to config
+    // Initialisierungssequenz für CCS811
+    err = write(CSS811_SENSOR_ADDR, 0xF4, 0xAA);  // App start
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start CCS811 app");
+        return err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));  // Warte 100ms nach App start
+
+    err = write(CSS811_SENSOR_ADDR, 0x01, 0x10);  // Set Mode 1 (1 sec measurement)
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set CCS811 measurement mode");
+        return err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));  // Warte auf Moduswechsel
+
+    hyt271_ctx.config = config;
 
     esp_timer_create_args_t args = {
         .callback = hyt271_timer_cb_internal,
@@ -322,36 +327,95 @@ esp_err_t hyt271_sensor_init(hyt271_sensor_config_t *config)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static esp_err_t d6t1a01_read(uint8_t *data, size_t size)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-
-    i2c_master_write_byte(cmd, (D6TA101_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);             // true entspricht ACK
-    i2c_master_write_byte(cmd, 0x4c, true);
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (D6TA101_SENSOR_ADDR << 1) | I2C_MASTER_READ, true);
-    i2c_master_read(cmd, data, size, I2C_MASTER_LAST_NACK);
-
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
-    cmd = NULL;
-    return ESP_OK;
-}
-
-static esp_err_t d6t1a01_convert(float & ptat, float & p0)          // generell bool ausgeben?
+static esp_err_t d6t1a01_convert(float & ptat, float & p0)
 {
     uint8_t data[4] = {0};
 
-    esp_err_t err = d6t1a01_read(data, sizeof(data));
+    esp_err_t err = write(D6TA101_SENSOR_ADDR, 0x4c, 0xFF); 
     if (err != ESP_OK) {
         return err;
-    }  
+    }
 
-    ptat = (256 * data[1] + data[0]);                             // Rechnung nach Bsp aus DB
-    p0 = (256 * data[3] + data[2]);
+    err = read(data, sizeof(data), D6TA101_SENSOR_ADDR);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    ptat = (256.0f * data[1] + data[0]) / 10.0f;                             // Rechnung nach Bsp aus DB durch 10 dividiert
+    p0 = (256.0f * data[3] + data[2]) / 10.0f;
+    #ifdef test
+    printf("\nD6T1a01:\n PTAT: %2.2f °C, P0: %2.2f °C\n", ptat, p0);
+    #endif
 
     return ESP_OK;
 }
-//////////////////toooooooooooooooo dooooooooooooooooooo
+
+
+static void d6t1a01_timer_cb_internal(void *arg)
+{
+    auto *ctx = (d6t1a01_sensor_ctx_t *) arg;
+    if (!(ctx && ctx->config)) {
+        return;
+    }
+
+    float ptat, p0;
+    static bool occupancy = false;
+    esp_err_t err = d6t1a01_convert(ptat, p0);
+    if (err != ESP_OK) {
+        return;
+    }
+
+    bool new_occupancy = (p0 > (ptat + 2.0f));                  // Bewegungserkennung basierend auf Temperaturdifferenz  // Schwellwert: 2 Grad über PTAT
+    #ifdef test
+    printf("Bool: %d\n", new_occupancy);
+    #endif
+
+    if (occupancy != new_occupancy) {                           // Benachrichtigung nur wenn sich der Status ändert
+        occupancy = new_occupancy;
+        if (ctx->config->cb) {
+            ctx->config->cb(ctx->config->endpoint_id, new_occupancy, ctx->config->user_data);
+        }
+    }
+}
+
+esp_err_t d6t1a01_sensor_init(d6t1a01_sensor_config_t *config)
+{
+    if (config == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (config->cb == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (d6t1a01_ctx.is_initialized) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t err = init_i2c();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    d6t1a01_ctx.config = config;
+
+    esp_timer_create_args_t args = {
+        .callback = d6t1a01_timer_cb_internal,
+        .arg = &d6t1a01_ctx,
+    };
+
+    err = esp_timer_create(&args, &d6t1a01_ctx.timer);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_timer_create failed, err:%d", err);
+        return err;
+    }
+
+    err = esp_timer_start_periodic(d6t1a01_ctx.timer, config->interval_ms * 1000);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_timer_start_periodic failed: %d", err);
+        return err;
+    }
+
+    d6t1a01_ctx.is_initialized = true;
+    ESP_LOGI(TAG, "d6t1a01 initialized successfully");
+
+    return ESP_OK;
+}

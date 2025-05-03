@@ -19,9 +19,6 @@
 #include <app_reset.h>
 #include <common_macros.h>
 
-// drivers implemented by this example
-//#include <drivers/shtc3.h>
-//#include <drivers/pir.h>
 #include <drivers/ccs811_hyt271_d6t1a01_i2c.h>
 
 static const char * TAG = "app_main";
@@ -32,26 +29,185 @@ using namespace esp_matter::endpoint;
 using namespace chip::app::Clusters;
 
 
+
+#include <esp_matter_core.h>
 #include <esp_matter_endpoint.h>
 #include <esp_matter_cluster.h>
+#include <esp_matter_identify.h>
+#include <esp_matter_attribute.h>
 
-/*
+#define I2C_MASTER_NUM I2C_NUM_0                        // I2C port number for master dev
+#define CSS811_SENSOR_ADDR 0x5a                         // I2C address of CSS811 sensor
+
+#define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID 0x0310
+#define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION 1
+#define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID 0x0311
+#define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION 1
+
+
 namespace esp_matter {
     namespace endpoint {
-        namespace eCO2_sensor {
-            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data) {
-                return common::create<config_t>(node, config, flags, priv_data, add);
-            }
-        } // namespace eCO2_sensor
+        namespace eco2_sensor {
 
-        namespace TVOC_sensor {
-            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data) {
-                return common::create<config_t>(node, config, flags, priv_data, add);
+            uint32_t get_device_type_id() {
+                return ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID;
             }
-        } // namespace TVOC_sensor
+
+            uint8_t get_device_type_version() {
+                return ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION;
+            }
+
+            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data) {
+                endpoint_t *endpoint = esp_matter::endpoint::create(node, flags, priv_data);
+                if (!endpoint) {
+                    return nullptr;
+                }
+                
+                esp_err_t err = add(endpoint, config);
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to add eco2 sensor clusters");
+                    esp_matter::endpoint::destroy(node,endpoint);
+                    return nullptr;
+                }
+                
+                return endpoint;
+            }
+            
+            esp_err_t add(endpoint_t *endpoint, config_t *config) {
+                esp_err_t err = esp_matter::endpoint::add_device_type(endpoint, get_device_type_id(), get_device_type_version());
+                if (err != ESP_OK) {
+                    return err;
+                }
+            
+                // Add identify cluster
+                cluster::identify::config_t identify_config;
+                identify_config.identify_type = chip::to_underlying(chip::app::Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator);
+                cluster::identify::create(endpoint, &identify_config, CLUSTER_FLAG_SERVER);
+            
+                // Create CO2 measurement cluster with configuration
+                cluster::carbon_dioxide_concentration_measurement::config_t co2_config = {};
+                co2_config.measurement_medium = 0x00; // Air measurement medium
+                
+                cluster_t *cluster = cluster::carbon_dioxide_concentration_measurement::create(endpoint, &co2_config, CLUSTER_FLAG_SERVER);
+                if (!cluster) {
+                    ESP_LOGE(TAG, "Failed to create CO2 measurement cluster");
+                    return ESP_FAIL;
+                }
+            
+                // Add mandatory attributes
+                attribute_t *attr = attribute::create(cluster, 
+                                                  CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id,
+                                                  ATTRIBUTE_FLAG_NULLABLE, 
+                                                  esp_matter_nullable_uint16(400));
+                if (!attr) {
+                    ESP_LOGE(TAG, "Failed to create MeasuredValue attribute");
+                    return ESP_FAIL;
+                }
+            
+                // Add min/max value attributes
+                attr = attribute::create(cluster,
+                                     CarbonDioxideConcentrationMeasurement::Attributes::MinMeasuredValue::Id,
+                                     ATTRIBUTE_FLAG_NULLABLE,
+                                     esp_matter_nullable_uint16(400));
+                if (!attr) {
+                    ESP_LOGE(TAG, "Failed to create MinMeasuredValue attribute");
+                    return ESP_FAIL;
+                }
+            
+                attr = attribute::create(cluster,
+                                     CarbonDioxideConcentrationMeasurement::Attributes::MaxMeasuredValue::Id,
+                                     ATTRIBUTE_FLAG_NULLABLE,
+                                     esp_matter_nullable_uint16(8192));
+                if (!attr) {
+                    ESP_LOGE(TAG, "Failed to create MaxMeasuredValue attribute");
+                    return ESP_FAIL;
+                }
+            
+                return ESP_OK;
+            }
+        } // namespace eco2_sensor
+        namespace tvoc_sensor {
+
+            uint32_t get_device_type_id() {
+                return ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID;
+            }
+
+            uint8_t get_device_type_version() {
+                return ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION;
+            }
+
+            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data) {
+                endpoint_t *endpoint = esp_matter::endpoint::create(node, flags, priv_data);
+                if (!endpoint) {
+                    return nullptr;
+                }
+                
+                esp_err_t err = add(endpoint, config);
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to add TVOC sensor clusters");
+                    esp_matter::endpoint::destroy(node,endpoint);
+                    return nullptr;
+                }
+                
+                return endpoint;
+            }
+            
+            esp_err_t add(endpoint_t *endpoint, config_t *config) {
+                esp_err_t err = esp_matter::endpoint::add_device_type(endpoint, get_device_type_id(), get_device_type_version());
+                if (err != ESP_OK) {
+                    return err;
+                }
+            
+                // Add identify cluster
+                cluster::identify::config_t identify_config;
+                identify_config.identify_type = chip::to_underlying(chip::app::Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator);
+                cluster::identify::create(endpoint, &identify_config, CLUSTER_FLAG_SERVER);
+            
+                // Create TVOC measurement cluster with configuration
+                cluster::total_volatile_organic_compounds_concentration_measurement::config_t tvoc_config = {};
+                tvoc_config.measurement_medium = 0x00; // Air measurement medium
+                
+                cluster_t *cluster = cluster::total_volatile_organic_compounds_concentration_measurement::create(endpoint, &tvoc_config, CLUSTER_FLAG_SERVER);
+                if (!cluster) {
+                    ESP_LOGE(TAG, "Failed to create TVOC measurement cluster");
+                    return ESP_FAIL;
+                }
+            
+                // Add mandatory attributes
+                attribute_t *attr = attribute::create(cluster, 
+                                                  TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id,
+                                                  ATTRIBUTE_FLAG_NULLABLE, 
+                                                  esp_matter_nullable_uint16(400));
+                if (!attr) {
+                    ESP_LOGE(TAG, "Failed to create MeasuredValue attribute");
+                    return ESP_FAIL;
+                }
+            
+                // Add min/max value attributes
+                attr = attribute::create(cluster,
+                                     TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MinMeasuredValue::Id,
+                                     ATTRIBUTE_FLAG_NULLABLE,
+                                     esp_matter_nullable_uint16(400));
+                if (!attr) {
+                    ESP_LOGE(TAG, "Failed to create MinMeasuredValue attribute");
+                    return ESP_FAIL;
+                }
+            
+                attr = attribute::create(cluster,
+                                     TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MaxMeasuredValue::Id,
+                                     ATTRIBUTE_FLAG_NULLABLE,
+                                     esp_matter_nullable_uint16(8192));
+                if (!attr) {
+                    ESP_LOGE(TAG, "Failed to create MaxMeasuredValue attribute");
+                    return ESP_FAIL;
+                }
+            
+                return ESP_OK;
+            }
+        } // namespace tvoc_sensor
     } // namespace endpoint
 } // namespace esp_matter
-*/
+
 
 
 
@@ -97,17 +253,20 @@ static void humidity_sensor_notification(uint16_t endpoint_id, float humidity, v
 
 static void eCO2_sensor_notification(uint16_t endpoint_id, float eCO2, void *user_data)
 {
-    // schedule the attribute update so that we can report it from matter thread
     chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, eCO2]() {
         attribute_t * attribute = attribute::get(endpoint_id,
-                                                 CarbonDioxideConcentrationMeasurement::Id,
-                                                 CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id);
-
+                                               CarbonDioxideConcentrationMeasurement::Id,
+                                               CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id);
+            
         esp_matter_attr_val_t val = esp_matter_invalid(NULL);
         attribute::get_val(attribute, &val);
-        val.val.u16 = static_cast<uint16_t>(eCO2 * 100);                                                        // TODO: check if this is correct
+        val.type = ESP_MATTER_VAL_TYPE_UINT16;
+        val.val.u16 = static_cast<uint16_t>(eCO2);  // CO2 wird in ppm gemessen, keine Multiplikation nötig
 
-        attribute::update(endpoint_id, CarbonDioxideConcentrationMeasurement::Id, CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id, &val);
+        attribute::update(endpoint_id, 
+                         CarbonDioxideConcentrationMeasurement::Id,
+                         CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id,
+                         &val);
     });
 }
 
@@ -117,20 +276,17 @@ static void TVOC_sensor_notification(uint16_t endpoint_id, float TVOC, void *use
     chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, TVOC]() {
         attribute_t * attribute = attribute::get(endpoint_id,
                                                  TotalVolatileOrganicCompoundsConcentrationMeasurement::Id,
-                                                 TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id);
+                                                 TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasurementMedium::Id);
 
         esp_matter_attr_val_t val = esp_matter_invalid(NULL);
         attribute::get_val(attribute, &val);
-        val.val.u16 = static_cast<uint16_t>(TVOC * 100);                                                        // TODO: check if this is correct
+        val.type = ESP_MATTER_VAL_TYPE_UINT16;
+        val.val.u16 = static_cast<uint16_t>(TVOC);
 
-        attribute::update(endpoint_id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id, &val);
+        attribute::update(endpoint_id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasurementMedium::Id, &val);
     });
 }
 
-// To do: d6t1a01 sensor notification
-
-
-/*
 static void occupancy_sensor_notification(uint16_t endpoint_id, bool occupancy, void *user_data)
 {
     // schedule the attribute update so that we can report it from matter thread
@@ -146,8 +302,6 @@ static void occupancy_sensor_notification(uint16_t endpoint_id, bool occupancy, 
         attribute::update(endpoint_id, OccupancySensing::Id, OccupancySensing::Attributes::Occupancy::Id, &val);
     });
 }
-*/
-
 
 
 
@@ -252,29 +406,59 @@ extern "C" void app_main()
 
 
     // add the eCO2 sensor device
-    air_quality_sensor::config_t air_quality_sensor_config;
-    endpoint_t * air_quality_sensor_ep = air_quality_sensor::create(node, &air_quality_sensor_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(air_quality_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create air_quality_sensor endpoint"));
-/*
-    // add the TVOC sensor device
-    air_quality_sensor::config_t air_quality_sensor_config;
-    endpoint_t * air_quality_sensor_ep = air_quality_sensor::create(node, &air_quality_sensor_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(air_quality_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create air_quality_sensor endpoint"));
+    eco2_sensor::config_t eCO2_sensor_config;
+    endpoint_t * eCO2_sensor_ep = eco2_sensor::create(node, &eCO2_sensor_config, ENDPOINT_FLAG_NONE, NULL);
+    ABORT_APP_ON_FAILURE(eCO2_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create eCO2_sensor endpoint"));
 
-    // add the detection sensor device (D6T1A01) ????????????????????
-*/
+    // add the TVOC sensor device
+    tvoc_sensor::config_t TVOC_sensor_config;
+    endpoint_t * TVOC_sensor_ep = tvoc_sensor::create(node, &TVOC_sensor_config, ENDPOINT_FLAG_NONE, NULL);
+    ABORT_APP_ON_FAILURE(TVOC_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create TVOC_sensor endpoint"));
+
+    // add the occupancy sensor device
+    occupancy_sensor::config_t occupancy_sensor_config;
+    occupancy_sensor_config.occupancy_sensing.occupancy_sensor_type =
+        chip::to_underlying(OccupancySensing::OccupancySensorTypeEnum::kPir);           // kPir = infraroter themischer sensor
+    occupancy_sensor_config.occupancy_sensing.occupancy_sensor_type_bitmap =
+        chip::to_underlying(OccupancySensing::OccupancySensorTypeBitmap::kPir);
+
+    endpoint_t * occupancy_sensor_ep = occupancy_sensor::create(node, &occupancy_sensor_config, ENDPOINT_FLAG_NONE, NULL);
+    ABORT_APP_ON_FAILURE(occupancy_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create occupancy_sensor endpoint"));
 
     
 
     // initialize CO2 and TVOC sensor driver (ccs811)
+/*
+    write(CSS811_SENSOR_ADDR, 0xF4, 0xAA);            // 
+    write(CSS811_SENSOR_ADDR, 0x01, 0x10);            // 0001 0000 = Mode 1 = constant power mode
+
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (CSS811_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, 0xF4, true);
+    i2c_master_stop(cmd);
+    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
+    i2c_cmd_link_delete(cmd);
+    cmd = NULL;
+
+    cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (CSS811_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, 0x01, true);
+    i2c_master_write_byte(cmd, 0x10, true);
+    i2c_master_stop(cmd);
+    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
+    i2c_cmd_link_delete(cmd);
+    cmd = NULL;
+*/
     static ccs811_sensor_config_t ccs811_config = {
         .eCO2 = {
             .cb = eCO2_sensor_notification,
-            .endpoint_id = endpoint::get_id(air_quality_sensor_ep),
+            .endpoint_id = endpoint::get_id(eCO2_sensor_ep),
         },
         .TVOC = {
             .cb = TVOC_sensor_notification,
-            .endpoint_id = endpoint::get_id(air_quality_sensor_ep),
+            .endpoint_id = endpoint::get_id(TVOC_sensor_ep),
         },
     };
     err = ccs811_sensor_init(&ccs811_config);
@@ -296,7 +480,12 @@ extern "C" void app_main()
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to initialize temperature and humidity sensor driver"));
 
     // initialize detection sensor driver (d6t1a01)
-
+    static d6t1a01_sensor_config_t d6t1a01_config = {
+        .cb = occupancy_sensor_notification,
+        .endpoint_id = endpoint::get_id(occupancy_sensor_ep),
+    };
+    err = d6t1a01_sensor_init(&d6t1a01_config);
+    ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to initialize occupancy sensor driver"));
 
 
 
@@ -317,16 +506,6 @@ extern "C" void app_main()
     err = shtc3_sensor_init(&shtc3_config);
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to initialize temperature sensor driver"));
 
-
-    // add the occupancy sensor
-    occupancy_sensor::config_t occupancy_sensor_config;
-    occupancy_sensor_config.occupancy_sensing.occupancy_sensor_type =
-        chip::to_underlying(OccupancySensing::OccupancySensorTypeEnum::kPir);
-    occupancy_sensor_config.occupancy_sensing.occupancy_sensor_type_bitmap =
-        chip::to_underlying(OccupancySensing::OccupancySensorTypeBitmap::kPir);
-
-    endpoint_t * occupancy_sensor_ep = occupancy_sensor::create(node, &occupancy_sensor_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(occupancy_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create occupancy_sensor endpoint"));
 
     // initialize occupancy sensor driver (pir)
     static pir_sensor_config_t pir_config = {
