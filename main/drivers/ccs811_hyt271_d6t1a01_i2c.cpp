@@ -173,6 +173,21 @@ esp_err_t ccs811_sensor_init(ccs811_sensor_config_t *config)
         return err;
     }
 
+    // Initialisierungssequenz für CCS811
+    err = write(CSS811_SENSOR_ADDR, 0xF4, 0xAA);  // App start
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start CCS811 app");
+        return err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));  // Warte 100ms nach App start
+
+    err = write(CSS811_SENSOR_ADDR, 0x01, 0x10);  // Set Mode 1 (1 sec measurement)
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set CCS811 measurement mode");
+        return err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));  // Warte auf Moduswechsel
+
     ccs811_ctx.config = config;
 
     esp_timer_create_args_t args = {
@@ -285,21 +300,6 @@ esp_err_t hyt271_sensor_init(hyt271_sensor_config_t *config)
         return err;
     }
 
-    // Initialisierungssequenz für CCS811
-    err = write(CSS811_SENSOR_ADDR, 0xF4, 0xAA);  // App start
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to start CCS811 app");
-        return err;
-    }
-    vTaskDelay(pdMS_TO_TICKS(100));  // Warte 100ms nach App start
-
-    err = write(CSS811_SENSOR_ADDR, 0x01, 0x10);  // Set Mode 1 (1 sec measurement)
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set CCS811 measurement mode");
-        return err;
-    }
-    vTaskDelay(pdMS_TO_TICKS(100));  // Warte auf Moduswechsel
-
     hyt271_ctx.config = config;
 
     esp_timer_create_args_t args = {
@@ -344,7 +344,7 @@ static esp_err_t d6t1a01_convert(float & ptat, float & p0)
     ptat = (256.0f * data[1] + data[0]) / 10.0f;                             // Rechnung nach Bsp aus DB durch 10 dividiert
     p0 = (256.0f * data[3] + data[2]) / 10.0f;
     #ifdef test
-    printf("\nD6T1a01:\n PTAT: %2.2f °C, P0: %2.2f °C\n", ptat, p0);
+    printf("\nD6T1a01:\nPTAT: %2.2f °C, P0: %2.2f °C\n", ptat, p0);
     #endif
 
     return ESP_OK;
