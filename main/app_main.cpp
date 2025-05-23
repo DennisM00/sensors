@@ -30,23 +30,88 @@ using namespace chip::app::Clusters;
 
 
 
-#include <esp_matter_core.h>
-#include <esp_matter_endpoint.h>
-#include <esp_matter_cluster.h>
-#include <esp_matter_identify.h>
-#include <esp_matter_attribute.h>
+// #include <esp_matter_core.h>
+// #include <esp_matter_endpoint.h>
+// #include <esp_matter_cluster.h>
+// #include <esp_matter_identify.h>
+// #include <esp_matter_attribute.h>
 
 #define I2C_MASTER_NUM I2C_NUM_0                        // I2C port number for master dev
 #define CSS811_SENSOR_ADDR 0x5a                         // I2C address of CSS811 sensor
 
-#define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID 0x0310
-#define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION 1
-#define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID 0x0311
-#define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION 1
+// #define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID 0x0310
+// #define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION 1
+// #define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID 0x0311
+// #define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION 1
 
-
+/*
 namespace esp_matter {
+    using namespace esp_matter;
     namespace endpoint {
+        namespace eCO2_sensor {
+            uint32_t get_device_type_id()
+            {
+                return ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID;
+            }
+            
+            uint8_t get_device_type_version()
+            {
+                return ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION;
+            }
+            
+            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data)
+            {
+                return common::create<config_t>(node, config, flags, priv_data, add);
+            }
+            
+            esp_err_t add(endpoint_t *endpoint, config_t *config)
+            {
+                esp_err_t err = add_device_type(endpoint, get_device_type_id(), get_device_type_version());
+                VerifyOrReturnError(err == ESP_OK, err);
+            
+                identify::config_t identify_config;
+                identify_config.identify_type = chip::to_underlying(Identify::IdentifyTypeEnum::kVisibleIndicator);
+                identify::create(endpoint, &identify_config, CLUSTER_FLAG_SERVER);
+                carbon_dioxide_concentration_measurement::create(endpoint, &(config->carbon_dioxide_concentration_measurement), CLUSTER_FLAG_SERVER);     /////////////
+            
+                return ESP_OK;
+            }
+            } // eCO2_sensor
+            
+            
+            
+            
+            namespace TVOC_sensor {
+            uint32_t get_device_type_id()
+            {
+                return ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID;
+            }
+            
+            uint8_t get_device_type_version()
+            {
+                return ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION;
+            }
+            
+            endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data)
+            {
+                return common::create<config_t>(node, config, flags, priv_data, add);
+            }
+            
+            esp_err_t add(endpoint_t *endpoint, config_t *config)
+            {
+                esp_err_t err = add_device_type(endpoint, get_device_type_id(), get_device_type_version());
+                VerifyOrReturnError(err == ESP_OK, err);
+            
+                identify::config_t identify_config;
+                identify_config.identify_type = chip::to_underlying(Identify::IdentifyTypeEnum::kVisibleIndicator);
+                identify::create(endpoint, &identify_config, CLUSTER_FLAG_SERVER);
+                total_volatile_organic_compounds_concentration_measurement::create(endpoint, &(config->total_volatile_organic_compounds_concentration_measurement), CLUSTER_FLAG_SERVER);     ////////////
+            
+                return ESP_OK;
+            }
+            } // TVOC_sensor 
+
+
         namespace eco2_sensor {
 
             uint32_t get_device_type_id() {
@@ -207,7 +272,7 @@ namespace esp_matter {
         } // namespace tvoc_sensor
     } // namespace endpoint
 } // namespace esp_matter
-
+*/
 
 
 
@@ -250,7 +315,35 @@ static void humidity_sensor_notification(uint16_t endpoint_id, float humidity, v
     });
 }
 
+static void eCO2_sensor_notification(uint16_t endpoint_id, float eCO2, void *user_data)
+{
+    // schedule the attribute update so that we can report it from matter thread
+    chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, eCO2]() {
+        attribute_t * attribute = attribute::get(endpoint_id,
+                                                 CarbonDioxideConcentrationMeasurement::Id,
+                                                 CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id);
+        
+        // if (!attribute) {
+        //     ESP_LOGE(TAG, "Failed to get CO2 attribute");
+        //     return;
+        // }
 
+        esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+        attribute::get_val(attribute, &val);
+        val.type = ESP_MATTER_VAL_TYPE_UINT16;
+        val.val.u16 = static_cast<uint16_t>(eCO2);
+
+        // esp_err_t err = 
+        attribute::update(endpoint_id, CarbonDioxideConcentrationMeasurement::Id, CarbonDioxideConcentrationMeasurement::Attributes::MeasuredValue::Id, &val);
+        // if (err != ESP_OK) {
+        //     ESP_LOGE(TAG, "Failed to update CO2 value: %d", err);
+        // }
+    });
+}
+
+
+
+/*
 static void eCO2_sensor_notification(uint16_t endpoint_id, float eCO2, void *user_data)
 {
     chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, eCO2]() {
@@ -269,21 +362,21 @@ static void eCO2_sensor_notification(uint16_t endpoint_id, float eCO2, void *use
                          &val);
     });
 }
-
+*/
 static void TVOC_sensor_notification(uint16_t endpoint_id, float TVOC, void *user_data)
 {
     // schedule the attribute update so that we can report it from matter thread
     chip::DeviceLayer::SystemLayer().ScheduleLambda([endpoint_id, TVOC]() {
         attribute_t * attribute = attribute::get(endpoint_id,
                                                  TotalVolatileOrganicCompoundsConcentrationMeasurement::Id,
-                                                 TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasurementMedium::Id);
+                                                 TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id);
 
         esp_matter_attr_val_t val = esp_matter_invalid(NULL);
         attribute::get_val(attribute, &val);
         val.type = ESP_MATTER_VAL_TYPE_UINT16;
         val.val.u16 = static_cast<uint16_t>(TVOC);
 
-        attribute::update(endpoint_id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasurementMedium::Id, &val);
+        attribute::update(endpoint_id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, TotalVolatileOrganicCompoundsConcentrationMeasurement::Attributes::MeasuredValue::Id, &val);
     });
 }
 
@@ -426,31 +519,6 @@ extern "C" void app_main()
     ABORT_APP_ON_FAILURE(occupancy_sensor_ep != nullptr, ESP_LOGE(TAG, "Failed to create occupancy_sensor endpoint"));
 
     
-
-    // initialize CO2 and TVOC sensor driver (ccs811)
-/*
-    write(CSS811_SENSOR_ADDR, 0xF4, 0xAA);            // 
-    write(CSS811_SENSOR_ADDR, 0x01, 0x10);            // 0001 0000 = Mode 1 = constant power mode
-
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (CSS811_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0xF4, true);
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
-    cmd = NULL;
-
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (CSS811_SENSOR_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, 0x01, true);
-    i2c_master_write_byte(cmd, 0x10, true);
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
-    i2c_cmd_link_delete(cmd);
-    cmd = NULL;
-*/
     static ccs811_sensor_config_t ccs811_config = {
         .eCO2 = {
             .cb = eCO2_sensor_notification,

@@ -90,7 +90,7 @@ typedef struct {
  #include <esp_matter_cluster.h>
  #include <esp_matter_core.h>
  #include <esp_matter_identify.h>
- 
+ /*
  // Namespace für Matter-Endpunkte
  namespace esp_matter {
      namespace endpoint {
@@ -117,7 +117,7 @@ typedef struct {
          } // namespace tvoc_sensor
      } // namespace endpoint
  } // namespace esp_matter
-
+*/
 
 
 
@@ -188,11 +188,11 @@ namespace esp_matter {
         } // TVOC_sensor
     } // endpoint
 } // esp_matter
+*/
 
 
 
-
-
+/*
 namespace eCO2_sensor {
 uint32_t get_device_type_id()
 {
