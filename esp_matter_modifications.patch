@@ -1,0 +1,419 @@
+diff --git a/components/esp_matter/esp_matter_cluster.cpp b/components/esp_matter/esp_matter_cluster.cpp
+index be0958f..e2d92f1 100644
+--- a/components/esp_matter/esp_matter_cluster.cpp
++++ b/components/esp_matter/esp_matter_cluster.cpp
+@@ -1678,33 +1678,88 @@ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags)
+ 
+ namespace  carbon_dioxide_concentration_measurement {
+ 
++// cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags)
++// {
++//     cluster_t *cluster = concentration_measurement::create<config_t>(endpoint, config, flags,
++//                                                        CarbonDioxideConcentrationMeasurement::Id, cluster_revision);
++//     if(config) {
++//         if(config->feature_flags & feature::numeric_measurement::get_id()) {
++//             feature::numeric_measurement::add(cluster, &(config->features.numeric_measurement));
++//         }
++//         if(config->feature_flags & feature::level_indication::get_id()) {
++//             feature::level_indication::add(cluster, &(config->features.level_indication));
++//         }
++//         if(config->feature_flags & feature::medium_level::get_id()) {
++//             feature::medium_level::add(cluster);
++//         }
++//         if(config->feature_flags & feature::critical_level::get_id()) {
++//             feature::critical_level::add(cluster);
++//         }
++//         if(config->feature_flags & feature::peak_measurement::get_id()) {
++//             feature::peak_measurement::add(cluster, &(config->features.peak_measurement));
++//         }
++//         if(config->feature_flags & feature::average_measurement::get_id()) {
++//             feature::average_measurement::add(cluster, &(config->features.average_measurement));
++//         }
++//     }
++//     return cluster;
++// }
++
++
++const function_generic_t *function_list = NULL;
++const int function_flags = CLUSTER_FLAG_NONE;
++
+ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags)
+ {
+-    cluster_t *cluster = concentration_measurement::create<config_t>(endpoint, config, flags,
+-                                                       CarbonDioxideConcentrationMeasurement::Id, cluster_revision);
+-    if(config) {
+-        if(config->feature_flags & feature::numeric_measurement::get_id()) {
+-            feature::numeric_measurement::add(cluster, &(config->features.numeric_measurement));
+-        }
+-        if(config->feature_flags & feature::level_indication::get_id()) {
+-            feature::level_indication::add(cluster, &(config->features.level_indication));
+-        }
+-        if(config->feature_flags & feature::medium_level::get_id()) {
+-            feature::medium_level::add(cluster);
+-        }
+-        if(config->feature_flags & feature::critical_level::get_id()) {
+-            feature::critical_level::add(cluster);
+-        }
+-        if(config->feature_flags & feature::peak_measurement::get_id()) {
+-            feature::peak_measurement::add(cluster, &(config->features.peak_measurement));
+-        }
+-        if(config->feature_flags & feature::average_measurement::get_id()) {
+-            feature::average_measurement::add(cluster, &(config->features.average_measurement));
++    cluster_t *cluster = cluster::create(endpoint, CarbonDioxideConcentrationMeasurement::Id, flags);
++    VerifyOrReturnValue(cluster, NULL, ESP_LOGE(TAG, "Could not create cluster. cluster_id: 0x%08" PRIX32, CarbonDioxideConcentrationMeasurement::Id));
++
++    if (flags & CLUSTER_FLAG_SERVER) {
++        static const auto plugin_server_init_cb = CALL_ONCE(MatterCarbonDioxideConcentrationMeasurementPluginServerInitCallback);
++        set_plugin_server_init_callback(cluster, plugin_server_init_cb);
++        add_function_list(cluster, function_list, function_flags);
++
++        /* Attributes managed internally */
++        global::attribute::create_feature_map(cluster, 0);
++
++        /* Attributes not managed internally */
++        global::attribute::create_cluster_revision(cluster, cluster_revision);
++        if (config) {
++            attribute::create_measured_value(cluster, config->measured_value);
++            attribute::create_min_measured_value(cluster, config->min_measured_value);
++            attribute::create_max_measured_value(cluster, config->max_measured_value);
++        } else {
++            ESP_LOGE(TAG, "Config is NULL. Cannot add some attributes.");
+         }
+     }
++
++    // if (flags & CLUSTER_FLAG_CLIENT) {
++    //     create_default_binding_cluster(endpoint);
++    // }
++
++    // if(config) {
++    //     if(config->feature_flags & feature::numeric_measurement::get_id()) {
++    //         feature::numeric_measurement::add(cluster, &(config->features.numeric_measurement));
++    //     }
++    //     if(config->feature_flags & feature::level_indication::get_id()) {
++    //         feature::level_indication::add(cluster, &(config->features.level_indication));
++    //     }
++    //     if(config->feature_flags & feature::medium_level::get_id()) {
++    //         feature::medium_level::add(cluster);
++    //     }
++    //     if(config->feature_flags & feature::critical_level::get_id()) {
++    //         feature::critical_level::add(cluster);
++    //     }
++    //     if(config->feature_flags & feature::peak_measurement::get_id()) {
++    //         feature::peak_measurement::add(cluster, &(config->features.peak_measurement));
++    //     }
++    //     if(config->feature_flags & feature::average_measurement::get_id()) {
++    //         feature::average_measurement::add(cluster, &(config->features.average_measurement));
++    //     }
++    // }
++
+     return cluster;
+ }
+-
+ } /* carbon_dioxide_concentration_measurement */
+ 
+ namespace  nitrogen_dioxide_concentration_measurement {
+@@ -1926,32 +1981,65 @@ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags)
+ 
+ namespace  total_volatile_organic_compounds_concentration_measurement {
+ 
++// cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags)
++// {
++//     cluster_t *cluster = concentration_measurement::create<config_t>(endpoint, config, flags, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, cluster_revision);
++//     if(config) {
++//         if(config->feature_flags & feature::numeric_measurement::get_id()) {
++//             feature::numeric_measurement::add(cluster, &(config->features.numeric_measurement));
++//         }
++//         if(config->feature_flags & feature::level_indication::get_id()) {
++//             feature::level_indication::add(cluster, &(config->features.level_indication));
++//         }
++//         if(config->feature_flags & feature::medium_level::get_id()) {
++//             feature::medium_level::add(cluster);
++//         }
++//         if(config->feature_flags & feature::critical_level::get_id()) {
++//             feature::critical_level::add(cluster);
++//         }
++//         if(config->feature_flags & feature::peak_measurement::get_id()) {
++//             feature::peak_measurement::add(cluster, &(config->features.peak_measurement));
++//         }
++//         if(config->feature_flags & feature::average_measurement::get_id()) {
++//             feature::average_measurement::add(cluster, &(config->features.average_measurement));
++//         }
++//     }
++//     return cluster;
++// }
++
++const function_generic_t *function_list = NULL;
++const int function_flags = CLUSTER_FLAG_NONE;
++
+ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags)
+ {
+-    cluster_t *cluster = concentration_measurement::create<config_t>(endpoint, config, flags, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, cluster_revision);
+-    if(config) {
+-        if(config->feature_flags & feature::numeric_measurement::get_id()) {
+-            feature::numeric_measurement::add(cluster, &(config->features.numeric_measurement));
+-        }
+-        if(config->feature_flags & feature::level_indication::get_id()) {
+-            feature::level_indication::add(cluster, &(config->features.level_indication));
+-        }
+-        if(config->feature_flags & feature::medium_level::get_id()) {
+-            feature::medium_level::add(cluster);
+-        }
+-        if(config->feature_flags & feature::critical_level::get_id()) {
+-            feature::critical_level::add(cluster);
+-        }
+-        if(config->feature_flags & feature::peak_measurement::get_id()) {
+-            feature::peak_measurement::add(cluster, &(config->features.peak_measurement));
+-        }
+-        if(config->feature_flags & feature::average_measurement::get_id()) {
+-            feature::average_measurement::add(cluster, &(config->features.average_measurement));
++    cluster_t *cluster = cluster::create(endpoint, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id, flags);
++    VerifyOrReturnValue(cluster, NULL, ESP_LOGE(TAG, "Could not create cluster. cluster_id: 0x%08" PRIX32, TotalVolatileOrganicCompoundsConcentrationMeasurement::Id));
++
++    if (flags & CLUSTER_FLAG_SERVER) {
++        static const auto plugin_server_init_cb = CALL_ONCE(MatterTotalVolatileOrganicCompoundsConcentrationMeasurementPluginServerInitCallback);
++        set_plugin_server_init_callback(cluster, plugin_server_init_cb);
++        add_function_list(cluster, function_list, function_flags);
++
++        /* Attributes managed internally */
++        global::attribute::create_feature_map(cluster, 0);
++
++        /* Attributes not managed internally */
++        global::attribute::create_cluster_revision(cluster, cluster_revision);
++        if (config) {
++            attribute::create_measured_value(cluster, config->measured_value);
++            attribute::create_min_measured_value(cluster, config->min_measured_value);
++            attribute::create_max_measured_value(cluster, config->max_measured_value);
++        } else {
++            ESP_LOGE(TAG, "Config is NULL. Cannot add some attributes.");
+         }
+     }
++
++    if (flags & CLUSTER_FLAG_CLIENT) {
++        create_default_binding_cluster(endpoint);
++    }
++
+     return cluster;
+ }
+-
+ } /* total_volatile_organic_compounds_concentration_measurement */
+ 
+ 
+diff --git a/components/esp_matter/esp_matter_cluster.h b/components/esp_matter/esp_matter_cluster.h
+index fb6e681..15d703a 100644
+--- a/components/esp_matter/esp_matter_cluster.h
++++ b/components/esp_matter/esp_matter_cluster.h
+@@ -479,9 +479,14 @@ typedef struct config {
+         feature::average_measurement::config_t average_measurement;
+     } features;
+     uint32_t feature_flags;
+-    config() : measurement_medium(0), feature_flags(0) {}
+-} config_t;
++//     config() : measurement_medium(0), feature_flags(0) {}
++// } config_t;
+ 
++    nullable<float> measured_value;
++    nullable<float> min_measured_value;
++    nullable<float> max_measured_value;
++    config() : measured_value(), min_measured_value(), max_measured_value() {}
++} config_t;
+ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags);
+ } /* carbon_dioxide_concentration_measurement */
+ 
+@@ -599,15 +604,20 @@ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags);
+ 
+ namespace total_volatile_organic_compounds_concentration_measurement {
+ typedef struct config {
+-    uint8_t measurement_medium;
+-    struct {
+-        feature::numeric_measurement::config_t numeric_measurement;
+-        feature::level_indication::config_t level_indication;
+-        feature::peak_measurement::config_t peak_measurement;
+-        feature::average_measurement::config_t average_measurement;
+-    } features;
+-    uint32_t feature_flags;
+-    config() : measurement_medium(0), feature_flags(0) {}
++    // uint8_t measurement_medium;
++    // struct {
++    //     feature::numeric_measurement::config_t numeric_measurement;
++    //     feature::level_indication::config_t level_indication;
++    //     feature::peak_measurement::config_t peak_measurement;
++    //     feature::average_measurement::config_t average_measurement;
++    // } features;
++    // uint32_t feature_flags;
++    // config() : measurement_medium(0), feature_flags(0) {}
++
++    nullable<float> measured_value;
++    nullable<float> min_measured_value;
++    nullable<float> max_measured_value;
++    config() : measured_value(), min_measured_value(), max_measured_value() {}
+ } config_t;
+ 
+ cluster_t *create(endpoint_t *endpoint, config_t *config, uint8_t flags);
+diff --git a/components/esp_matter/esp_matter_endpoint.cpp b/components/esp_matter/esp_matter_endpoint.cpp
+index 6643cf1..23074ef 100644
+--- a/components/esp_matter/esp_matter_endpoint.cpp
++++ b/components/esp_matter/esp_matter_endpoint.cpp
+@@ -1002,6 +1002,70 @@ esp_err_t add(endpoint_t *endpoint, config_t *config)
+ }
+ } /* humidity_sensor */
+ 
++
++
++namespace eco2_sensor {
++uint32_t get_device_type_id()
++{
++    return ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID;
++}
++
++uint8_t get_device_type_version()
++{
++    return ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION;
++}
++
++endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data)
++{
++    return common::create<config_t>(node, config, flags, priv_data, add);
++}
++
++esp_err_t add(endpoint_t *endpoint, config_t *config)
++{
++    esp_err_t err = add_device_type(endpoint, get_device_type_id(), get_device_type_version());
++    VerifyOrReturnError(err == ESP_OK, err);
++
++    identify::config_t identify_config;
++    identify_config.identify_type = chip::to_underlying(Identify::IdentifyTypeEnum::kVisibleIndicator);
++    identify::create(endpoint, &identify_config, CLUSTER_FLAG_SERVER);
++    carbon_dioxide_concentration_measurement::create(endpoint, &(config->carbon_dioxide_concentration_measurement), CLUSTER_FLAG_SERVER);
++
++    return ESP_OK;
++}
++} /* eco2_sensor */
++
++namespace tvoc_sensor {
++uint32_t get_device_type_id()
++{
++    return ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID;
++}
++
++uint8_t get_device_type_version()
++{
++    return ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION;
++}
++
++endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data)
++{
++    return common::create<config_t>(node, config, flags, priv_data, add);
++}
++
++esp_err_t add(endpoint_t *endpoint, config_t *config)
++{
++    esp_err_t err = add_device_type(endpoint, get_device_type_id(), get_device_type_version());
++    VerifyOrReturnError(err == ESP_OK, err);
++
++    identify::config_t identify_config;
++    identify_config.identify_type = chip::to_underlying(Identify::IdentifyTypeEnum::kVisibleIndicator);
++    identify::create(endpoint, &identify_config, CLUSTER_FLAG_SERVER);
++    total_volatile_organic_compounds_concentration_measurement::create(endpoint, &(config->total_volatile_organic_compounds_concentration_measurement), CLUSTER_FLAG_SERVER);
++
++    return ESP_OK;
++}
++} /* tvoc_sensor */
++
++
++
+ namespace occupancy_sensor {
+ uint32_t get_device_type_id()
+ {
+diff --git a/components/esp_matter/esp_matter_endpoint.h b/components/esp_matter/esp_matter_endpoint.h
+index ac32966..fd4732f 100644
+--- a/components/esp_matter/esp_matter_endpoint.h
++++ b/components/esp_matter/esp_matter_endpoint.h
+@@ -75,6 +75,12 @@
+ #define ESP_MATTER_FLOW_SENSOR_DEVICE_TYPE_VERSION 2
+ #define ESP_MATTER_HUMIDITY_SENSOR_DEVICE_TYPE_ID 0x0307
+ #define ESP_MATTER_HUMIDITY_SENSOR_DEVICE_TYPE_VERSION 2
++
++#define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_ID 0x0310
++#define ESP_MATTER_ECO2_SENSOR_DEVICE_TYPE_VERSION 1
++#define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_ID 0x0311
++#define ESP_MATTER_TVOC_SENSOR_DEVICE_TYPE_VERSION 1
++
+ #define ESP_MATTER_ROOM_AIR_CONDITIONER_DEVICE_TYPE_ID 0x0072
+ #define ESP_MATTER_ROOM_AIR_CONDITIONER_DEVICE_TYPE_VERSION 2
+ #define ESP_MATTER_REFRIGERATOR_DEVICE_TYPE_ID 0x0070
+@@ -513,6 +519,31 @@ endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_dat
+ esp_err_t add(endpoint_t *endpoint, config_t *config);
+ } /* humidity_sensor */
+ 
++
++namespace tvoc_sensor{
++typedef struct config : app_base_config {
++    cluster::total_volatile_organic_compounds_concentration_measurement::config_t total_volatile_organic_compounds_concentration_measurement;
++} config_t;
++    
++uint32_t get_device_type_id();
++uint8_t get_device_type_version();
++endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data);
++esp_err_t add(endpoint_t *endpoint, config_t *config);
++}/* tvoc_sensor */
++
++namespace eco2_sensor{
++typedef struct config : app_base_config {
++    cluster::carbon_dioxide_concentration_measurement::config_t carbon_dioxide_concentration_measurement;
++} config_t;
++        
++uint32_t get_device_type_id();
++uint8_t get_device_type_version();
++endpoint_t *create(node_t *node, config_t *config, uint8_t flags, void *priv_data);
++esp_err_t add(endpoint_t *endpoint, config_t *config);
++}/* co2_sensor */
++
++
++
+ namespace occupancy_sensor {
+ typedef struct config : app_base_config {
+     cluster::occupancy_sensing::config_t occupancy_sensing;
+diff --git a/examples/common/app_reset/app_reset.cpp b/examples/common/app_reset/app_reset.cpp
+index 35bf89f..36d893f 100644
+--- a/examples/common/app_reset/app_reset.cpp
++++ b/examples/common/app_reset/app_reset.cpp
+@@ -34,15 +34,31 @@ static void button_factory_reset_released_cb(void *arg, void *data)
+     }
+ }
+ 
+-esp_err_t app_reset_button_register(void *handle)
++esp_err_t app_reset_button_register(void* button_handle)
+ {
+-    if (!handle) {
+-        ESP_LOGE(TAG, "Handle cannot be NULL");
+-        return ESP_ERR_INVALID_ARG;
+-    }
+-    button_handle_t button_handle = (button_handle_t)handle;
+     esp_err_t err = ESP_OK;
+-    err |= iot_button_register_cb(button_handle, BUTTON_LONG_PRESS_HOLD, NULL, button_factory_reset_pressed_cb, NULL);
+-    err |= iot_button_register_cb(button_handle, BUTTON_PRESS_UP, NULL, button_factory_reset_released_cb, NULL);
++    
++    // Fixed function call to match the correct signature
++    err = iot_button_register_cb(
++        (button_handle_t)button_handle,
++        BUTTON_LONG_PRESS_HOLD,
++        button_factory_reset_pressed_cb,  // Removed cast and NULL parameter
++        NULL
++    );
++
+     return err;
+ }
++
++
++// esp_err_t app_reset_button_register(void *handle)
++// {
++//     if (!handle) {
++//         ESP_LOGE(TAG, "Handle cannot be NULL");
++//         return ESP_ERR_INVALID_ARG;
++//     }
++//     button_handle_t button_handle = (button_handle_t)handle;
++//     esp_err_t err = ESP_OK;
++//     err |= iot_button_register_cb(button_handle, BUTTON_LONG_PRESS_HOLD, NULL, button_factory_reset_pressed_cb, NULL);
++//     err |= iot_button_register_cb(button_handle, BUTTON_PRESS_UP, NULL, button_factory_reset_released_cb, NULL);
++//     return err;
++// }
