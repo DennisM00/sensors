@@ -1,0 +1,34 @@
+Export log for : PCB-neu_2025-06-15.Rep
+      Warning: Unknown Kind 11
+      Warning: Unknown Kind 11
+      Warning: Unknown Kind 11
+      Warning: Unknown Kind 11
+AddingPadStyle (Default)
+AddingPadStyle P:EX40Y40D201
+AddingPadStyle P:EX126Y126D1261
+AddingPadStyle P:EX65Y65D401
+AddingPadStyle P:EX60Y60D361
+AddingPadStyle P:EX32Y32D241
+Adding ViaStyle (Default)
+Adding ViaStyle V:EX24Y24D121
+Adding TextStyle (Default)
+Adding TextStyle T:H45W6
+Adding TextStyle T:H80W8
+Adding TextStyle T:H45W61
+Adding TextStyle T:H0W0
+Adding PatternDef PIN-HEADER-210S-2X12P WK_1
+Adding PatternDef ESP32-C6-DEV-KIT-N8_1
+Adding PatternDef HYT271_1
+Adding PatternDef WAAYAVHK_1
+Adding PatternDef CCS811 JOY-IT_1
+Adding PatternDef D6T1A01_1
+Adding PatternDef R0603_1
+Adding CompDef PIN-HEADER-210S-2X12P WK_1
+Adding CompDef ESP32-C6-DEV-KIT-N8_1
+Adding CompDef HYT271_1
+Adding CompDef WAAYAVHK_1
+Adding CompDef CCS811 JOY-IT_1
+Adding CompDef D6T1A01_1
+Adding CompDef R0603_1
+ 
+EndLog
