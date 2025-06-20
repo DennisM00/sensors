@@ -12,8 +12,8 @@ static const char * TAG = "i2c";
 
 #define test
 
-#define I2C_MASTER_SCL_IO 19//I2C_SCL_PIN      // = GPIO_NUM_19 Kconfig
-#define I2C_MASTER_SDA_IO 18//I2C_SDA_PIN      // = GPIO_NUM_18 Kconfig
+#define I2C_MASTER_SCL_IO 19                            // I2C_SCL_PIN
+#define I2C_MASTER_SDA_IO 18                            // I2C_SDA_PIN
 #define I2C_MASTER_NUM I2C_NUM_0                        // I2C port number for master dev
 #define I2C_MASTER_FREQ_HZ 100000                       // I2C master clock frequency
 
@@ -136,7 +136,7 @@ static esp_err_t ccs811_convert(int & eCO2, int & TVOC)
     return ESP_OK;
 }
 
-static void ccs811_timer_cb_internal(void *arg)                                                                     // ??????????????????????
+static void ccs811_timer_cb_internal(void *arg)
 {
     auto *ctx = (ccs811_sensor_ctx_t *) arg;
     if (!(ctx && ctx->config)) {
