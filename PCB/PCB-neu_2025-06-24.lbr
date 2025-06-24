@@ -262,8 +262,8 @@
 <text x="-0.762" y="1.27" size="2.032" layer="25" font="vector" ratio="13" rot="SR0">&gt;NAME</text>
 <text x="-0.762" y="1.016" size="2.032" layer="27" font="vector" ratio="13" rot="SR0">&gt;VALUE</text>
 </package>
-<package name="WAAYAVHK_1PRIMARY">
-<description>Original name &lt;b&gt;WAAYAVHK&lt;/b&gt;&lt;p&gt;</description>
+<package name="CONAYFJX_1PRIMARY">
+<description>Original name &lt;b&gt;CONAYFJX&lt;/b&gt;&lt;p&gt;</description>
 <wire x1="0.9652" y1="-4.3434" x2="2.1336" y2="-4.3434" width="0.1016" layer="48"/>
 <wire x1="1.0922" y1="0.2286" x2="1.4478" y2="0.4572" width="0.1016" layer="48"/>
 <wire x1="-3.4036" y1="0.635" x2="1.7272" y2="0.635" width="0.1016" layer="48"/>
@@ -373,8 +373,8 @@
 <text x="-1.4612875" y="0.990803125" size="2.032" layer="25" font="vector" ratio="13" rot="SR0">&gt;NAME</text>
 <text x="-1.4612875" y="0.736803125" size="2.032" layer="27" font="vector" ratio="13" rot="SR0">&gt;VALUE</text>
 </package>
-<package name="P:EX40Y40D201">
-<pad name="1" x="0" y="0" drill="0.508" diameter="1.016"/>
+<package name="P:EX40Y40D241">
+<pad name="1" x="0" y="0" drill="0.6096" diameter="1.016"/>
 </package>
 <package name="P:EX126Y126D1261">
 <pad name="1" x="0" y="0" drill="3.2004" diameter="3.2004"/>
@@ -416,11 +416,11 @@
 </device>
 </devices>
 </deviceset>
-<deviceset name="WAAYAVHK_1">
+<deviceset name="CONAYFJX_1">
 <gates>
 </gates>
 <devices>
-<device name="" package="WAAYAVHK_1PRIMARY">
+<device name="" package="CONAYFJX_1PRIMARY">
 <technologies>
 <technology name=""/>
 </technologies>
@@ -460,7 +460,7 @@
 </device>
 </devices>
 </deviceset>
-<deviceset name="P:EX40Y40D201">
+<deviceset name="P:EX40Y40D241">
 <gates>
 </gates>
 <devices>
