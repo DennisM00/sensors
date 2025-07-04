@@ -71,8 +71,6 @@
 <text x="78.2169875" y="93.316528125" size="1.524" layer="21" font="vector" ratio="10" rot="SR0">Extension</text>
 <text x="78.2169875" y="91.665528125" size="1.524" layer="21" font="vector" ratio="10" rot="SR0">Header</text>
 <text x="74.5339875" y="38.643028125" size="2.709340625" layer="21" font="vector" ratio="7" rot="SR0">Multisensor</text>
-<wire x1="92.5576" y1="73.9394" x2="92.5576" y2="81.5594" width="0.254" layer="48"/>
-<wire x1="92.5576" y1="73.9394" x2="96.2406" y2="70.2564" width="0.254" layer="48"/>
 </plain>
 <libraries>
 <library name="PCB-neue-Widerstände_2025-07-04">
