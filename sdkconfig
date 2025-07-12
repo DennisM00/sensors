@@ -615,14 +615,6 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
-#
-CONFIG_SHTC3_I2C_SDA_PIN=18
-CONFIG_SHTC3_I2C_SCL_PIN=19
-CONFIG_PIR_DATA_PIN=7
-# end of Example Configuration
-
-#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
